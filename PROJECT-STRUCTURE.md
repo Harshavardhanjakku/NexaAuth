@@ -13,7 +13,7 @@ NexaAuth/
 ├── 📄 .gitignore                      # Git ignore rules
 ├── 📄 docker-compose.yml              # Docker services configuration
 ├── 📄 index.js                        # Main application file
-├── 📄 package.json                    # Node.js dependencies and scripts
+├── 📄 package.json                       # Node.js dependencies and scripts
 ├── 📄 package-lock.json              # Dependency lock file
 ├── 📄 README.md                       # Main project documentation
 ├── 📄 API-DOCUMENTATION.md            # Complete API reference
