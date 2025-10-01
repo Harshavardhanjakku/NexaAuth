@@ -122,3 +122,6 @@ Thumbs.db
 test-*.js
 *-test.js
 *.test.js
+
+organisations.js
+users.js
