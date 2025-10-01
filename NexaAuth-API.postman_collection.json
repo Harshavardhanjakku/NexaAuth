@@ -1,0 +1,146 @@
+{
+  "info": {
+    "name": "NexaAuth Registration Service",
+    "description": "API collection for testing automatic organization, client, and user creation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3001/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Test Registration",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "http://localhost:3001/test-register",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["test-register"]
+        }
+      }
+    },
+    {
+      "name": "Register User (Google OAuth)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"keycloakId\": \"{{google_user_id}}\",\n  \"email\": \"john.doe@gmail.com\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"username\": \"johndoe\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3001/register",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["register"]
+        }
+      }
+    },
+    {
+      "name": "Register User (Keycloak Direct)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"keycloakId\": \"{{keycloak_user_id}}\",\n  \"email\": \"jane.smith@company.com\",\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Smith\",\n  \"username\": \"janesmith\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3001/register",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["register"]
+        }
+      }
+    },
+    {
+      "name": "Get User Info",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3001/user/{{keycloak_user_id}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["user", "{{keycloak_user_id}}"]
+        }
+      }
+    },
+    {
+      "name": "Get User Groups (Organizations)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3001/user/{{keycloak_user_id}}/groups",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["user", "{{keycloak_user_id}}", "groups"]
+        }
+      }
+    },
+    {
+      "name": "Get User Clients",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3001/user/{{keycloak_user_id}}/clients",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["user", "{{keycloak_user_id}}", "clients"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "keycloak_user_id",
+      "value": "replace-with-actual-keycloak-user-id",
+      "description": "Keycloak user ID from user registration"
+    },
+    {
+      "key": "google_user_id",
+      "value": "replace-with-actual-google-user-id",
+      "description": "Google OAuth user ID"
+    }
+  ]
+}

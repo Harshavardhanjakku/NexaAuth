@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processing Login...</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container { 
+            max-width: 600px; 
+            background: rgba(255,255,255,0.1);
+            padding: 40px; 
+            border-radius: 15px; 
+            backdrop-filter: blur(10px);
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        h1 { color: #fff; margin-bottom: 20px; }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .loading { color: #FFC107; }
+        pre { 
+            background: rgba(0,0,0,0.3); 
+            padding: 15px; 
+            border-radius: 8px; 
+            overflow-x: auto;
+            text-align: left;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Processing Your Login...</h1>
+        <div class="spinner"></div>
+        <p id="message" class="loading">Please wait while we set up your account...</p>
+        <pre id="details" style="display: none;"></pre>
+    </div>
+
+    <script>
+        // Enhanced logging for debugging
+        function log(message, data = null) {
+            console.log(`[OAUTH-CALLBACK] ${message}`, data || '');
+            const detailsElement = document.getElementById('details');
+            if (detailsElement) {
+                detailsElement.textContent += `\n[${new Date().toLocaleTimeString()}] ${message}`;
+                if (data) detailsElement.textContent += `\nData: ${JSON.stringify(data, null, 2)}`;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            log('🚀 OAuth callback page loaded');
+            
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            const state = params.get('state');
+            const error = params.get('error');
+            const messageElement = document.getElementById('message');
+            const detailsElement = document.getElementById('details');
+
+            log('📋 URL Parameters:', {
+                code: code ? `${code.substring(0, 20)}...` : 'none',
+                state: state,
+                error: error,
+                fullUrl: window.location.href
+            });
+
+            if (error) {
+                log('❌ OAuth error detected', { error, description: params.get('error_description') });
+                messageElement.className = 'error';
+                messageElement.textContent = `❌ Login Error: ${error}`;
+                detailsElement.textContent = `Details: ${params.get('error_description') || 'No description'}`;
+                detailsElement.style.display = 'block';
+                return;
+            }
+
+            if (!code) {
+                log('❌ No authorization code received');
+                messageElement.className = 'error';
+                messageElement.textContent = '❌ No authorization code received. Please try logging in again.';
+                return;
+            }
+
+            try {
+                log('✅ Authorization code received, starting token exchange...');
+                messageElement.textContent = '✅ Authorization successful. Getting user details...';
+
+                // Exchange code for token
+                log('🔄 Exchanging code for token...');
+                const tokenResponse = await fetch('http://localhost:8080/realms/nexaauth/protocol/openid-connect/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({
+                        grant_type: 'authorization_code',
+                        client_id: 'nexaauth-app',
+                        redirect_uri: 'http://localhost:3000',
+                        code: code
+                    })
+                });
+
+                log('📡 Token response status:', tokenResponse.status);
+
+                if (!tokenResponse.ok) {
+                    const errorData = await tokenResponse.json();
+                    log('❌ Token exchange failed', errorData);
+                    throw new Error(`Failed to get token: ${errorData.error_description || tokenResponse.statusText}`);
+                }
+
+                const tokenData = await tokenResponse.json();
+                log('✅ Token received successfully');
+                const accessToken = tokenData.access_token;
+
+                // Decode JWT to get user info
+                log('🔍 Decoding JWT token...');
+                const payload = JSON.parse(atob(accessToken.split('.')[1]));
+                const keycloakId = payload.sub;
+                const email = payload.email;
+                const firstName = payload.given_name;
+                const lastName = payload.family_name;
+
+                log('👤 User info extracted:', { keycloakId, email, firstName, lastName });
+
+                messageElement.textContent = `👤 User: ${email}. Creating organization and client...`;
+                detailsElement.textContent = `Keycloak ID: ${keycloakId}\nEmail: ${email}\nName: ${firstName} ${lastName}`;
+                detailsElement.style.display = 'block';
+
+                // Call backend API to create organization and client
+                log('🔄 Calling backend API to create organization and client...');
+                const backendResponse = await fetch('http://localhost:3000/register-google-idp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        keycloakId: keycloakId,
+                        email: email,
+                        firstName: firstName || '',
+                        lastName: lastName || ''
+                    })
+                });
+
+                log('📡 Backend response status:', backendResponse.status);
+
+                if (!backendResponse.ok) {
+                    const errorData = await backendResponse.json();
+                    log('❌ Backend registration failed', errorData);
+                    throw new Error(`Backend registration failed: ${errorData.message || backendResponse.statusText}`);
+                }
+
+                const result = await backendResponse.json();
+                log('✅ Backend registration successful', result);
+                
+                // Hide spinner and show success
+                document.querySelector('.spinner').style.display = 'none';
+                messageElement.className = 'success';
+                messageElement.textContent = '🎉 Registration Complete!';
+                detailsElement.textContent = `✅ User: ${result.data.email}\n✅ Organization: ${result.data.organizationName}\n✅ Client: ${result.data.clientId}\n✅ Domain: ${result.data.domain}`;
+
+                log('🎉 Registration completed successfully!');
+
+                // Auto-close after 5 seconds
+                setTimeout(() => {
+                    log('🔄 Auto-closing window in 5 seconds...');
+                    window.close();
+                }, 5000);
+
+            } catch (err) {
+                log('❌ Error occurred', { message: err.message, stack: err.stack });
+                document.querySelector('.spinner').style.display = 'none';
+                messageElement.className = 'error';
+                messageElement.textContent = `❌ Registration Failed: ${err.message}`;
+                detailsElement.textContent = `Error details: ${err.message}\n\nPlease check the server logs for more details.`;
+                detailsElement.style.display = 'block';
+                console.error('OAuth Callback Error:', err);
+            }
+        });
+    </script>
+</body>
+</html>

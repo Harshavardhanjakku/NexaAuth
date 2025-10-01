@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Google Login - NexaAuth</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            padding: 30px; 
+            border-radius: 15px; 
+            backdrop-filter: blur(10px);
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.3s;
+        }
+        .btn:hover { background: #0056b3; }
+        .btn-google {
+            background: #db4437;
+        }
+        .btn-google:hover { background: #c23321; }
+        .console-log {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success { background: rgba(76, 175, 80, 0.3); }
+        .status.error { background: rgba(244, 67, 54, 0.3); }
+        .status.info { background: rgba(33, 150, 243, 0.3); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Google Login Flow</h1>
+        <p>This page will help you test the complete Google login flow and see all debug information.</p>
+        
+        <div class="status info">
+            <strong>📋 Instructions:</strong><br>
+            1. Click "Test Google Login" button<br>
+            2. Complete Google authentication<br>
+            3. Watch the console logs below<br>
+            4. Check if user, organization, and client are created
+        </div>
+
+        <a href="http://localhost:8080/realms/nexaauth/protocol/openid-connect/auth?client_id=nexaauth-app&redirect_uri=http://localhost:3000&response_type=code&scope=openid" 
+           class="btn btn-google">
+            🔗 Test Google Login
+        </a>
+
+        <div class="status info">
+            <strong>🔍 Debug Information:</strong><br>
+            Open browser console (F12) to see detailed logs<br>
+            Backend logs will show in your terminal
+        </div>
+
+        <div id="console-log" class="console-log">
+            <div>Console logs will appear here...</div>
+        </div>
+
+        <div class="status info">
+            <strong>✅ Expected Result:</strong><br>
+            - User created in Keycloak<br>
+            - Organization created automatically<br>
+            - Client created automatically<br>
+            - Success page displayed
+        </div>
+    </div>
+
+    <script>
+        // Enhanced console logging
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        function addToConsoleLog(message, type = 'log') {
+            const consoleDiv = document.getElementById('console-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.style.color = type === 'error' ? '#ff6b6b' : type === 'warn' ? '#ffd93d' : '#6bcf7f';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            consoleDiv.appendChild(logEntry);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsoleLog(args.join(' '), 'log');
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsoleLog(args.join(' '), 'error');
+        };
+
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToConsoleLog(args.join(' '), 'warn');
+        };
+
+        // Log page load
+        console.log('🧪 Test page loaded - Ready to test Google login flow');
+        console.log('📋 Click the "Test Google Login" button to start');
+        console.log('🔍 All logs will appear here and in browser console');
+    </script>
+</body>
+</html>
