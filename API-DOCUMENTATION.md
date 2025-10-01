@@ -5,9 +5,26 @@
 http://localhost:3000
 ```
 
-## 🔐 Authentication
+## 🔐 Authentication & Google Identity Provider
 
-All API endpoints require proper authentication through Keycloak. The system uses OAuth 2.0/OpenID Connect for secure authentication.
+### OAuth 2.0/OpenID Connect Flow
+
+The NexaAuth system uses a sophisticated OAuth 2.0/OpenID Connect flow with Google Identity Provider integration:
+
+1. **Authorization Code Flow**: Standard OAuth 2.0 authorization code flow
+2. **JWT Token Exchange**: Authorization codes are exchanged for JWT access tokens
+3. **User Information Extraction**: User details are extracted from JWT payload
+4. **Automatic Resource Creation**: Organizations and clients are created automatically
+
+### Google IDP Integration
+
+The system seamlessly integrates with Google Identity Provider through Keycloak:
+
+- **User Creation**: Google users are automatically created in Keycloak realm
+- **Attribute Mapping**: Google user attributes are mapped to Keycloak user attributes
+- **Organization Creation**: Organizations are created based on user email domain
+- **Client Creation**: Clients are created for each organization
+- **Role Assignment**: Users are automatically assigned appropriate roles
 
 ## 📋 Endpoints
 
@@ -262,6 +279,110 @@ Content-Type: application/json
   "error": "User not found",
   "message": "No user found with email: nonexistent@gmail.com"
 }
+```
+
+---
+
+## 🔄 Google Identity Provider Workflow
+
+### Complete OAuth Flow with Google IDP
+
+#### **Step 1: User Initiates Login**
+```http
+GET http://localhost:3000/test
+```
+- Returns HTML page with Google login button
+- User clicks "Test Google Login"
+- Redirects to Keycloak Google IDP
+
+#### **Step 2: Google Authentication**
+```http
+GET http://localhost:8080/realms/nexaauth/protocol/openid-connect/auth?client_id=nexaauth-app&redirect_uri=http://localhost:3000&response_type=code&scope=openid
+```
+- Keycloak redirects to Google OAuth
+- User authenticates with Google
+- Google validates credentials
+
+#### **Step 3: Authorization Code Exchange**
+```http
+GET http://localhost:3000/?code=AUTHORIZATION_CODE&state=STATE_VALUE
+```
+- Keycloak redirects back with authorization code
+- Backend exchanges code for JWT token
+- User information extracted from JWT
+
+#### **Step 4: Automatic Resource Creation**
+```http
+POST http://localhost:3000/register-google-idp
+Content-Type: application/json
+
+{
+  "keycloakId": "extracted-from-jwt",
+  "email": "user@gmail.com",
+  "firstName": "John",
+  "lastName": "Doe"
+}
+```
+
+### Google IDP Attribute Mapping
+
+| Google OAuth Attribute | Keycloak User Attribute | Description |
+|------------------------|-------------------------|-------------|
+| `sub` | `keycloakId` | Unique Google user identifier |
+| `email` | `email` | User's email address |
+| `given_name` | `firstName` | User's first name |
+| `family_name` | `lastName` | User's last name |
+| `name` | `fullName` | User's full name |
+| `picture` | `picture` | User's profile picture URL |
+| `email_verified` | `emailVerified` | Email verification status |
+| `locale` | `locale` | User's locale preference |
+
+### Automatic Resource Naming Convention
+
+#### **Organization Creation**
+```javascript
+// Input: john.doe@gmail.com
+// Domain extraction: "gmail"
+// Name sanitization: "johndoe"
+// Organization name: "org-gmail-johndoe"
+// Domain: "org-gmail-johndoe.org"
+```
+
+#### **Client Creation**
+```javascript
+// Input: john.doe@gmail.com
+// Domain extraction: "gmail"
+// Name sanitization: "johndoe"
+// Client ID: "client-gmail-johndoe"
+// Client name: "Client for John Doe"
+```
+
+#### **Role Assignment**
+```javascript
+// Automatic role creation and assignment
+// Role name: "admin"
+// Role description: "Administrator role for organization"
+// Assigned to: User
+```
+
+### Debug Logging for Google IDP Flow
+
+The system provides comprehensive debug logging:
+
+```javascript
+// Example debug output
+[DEBUG] OAuth callback received with code: abc123...
+[DEBUG] Exchanging authorization code for token...
+[DEBUG] Token exchange successful
+[DEBUG] Extracting user information from JWT...
+[DEBUG] User ID: 550e8400-e29b-41d4-a716-446655440000
+[DEBUG] Email: john.doe@gmail.com
+[DEBUG] First name: John
+[DEBUG] Last name: Doe
+[DEBUG] Creating organization: org-gmail-johndoe
+[DEBUG] Creating client: client-gmail-johndoe
+[DEBUG] Assigning admin role to user
+[DEBUG] All resources created successfully
 ```
 
 ---

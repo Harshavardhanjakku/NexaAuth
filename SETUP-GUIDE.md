@@ -114,11 +114,52 @@ nexaauth   quay.io/keycloak/keycloak:26.3.1   Up      0.0.0.0:8080->8080/tcp
 
 #### 5.5 Configure Google Identity Provider
 
-1. Navigate to **Identity Providers** → **Add provider** → **Google**
-2. Configure Google OAuth:
+1. **Navigate to Identity Providers**:
+   - Go to **Identity Providers** → **Add provider** → **Google**
+
+2. **Configure Google OAuth Settings**:
    - **Client ID**: Your Google OAuth Client ID
    - **Client Secret**: Your Google OAuth Client Secret
-3. Click **"Save"**
+   - **Default Scopes**: `openid profile email`
+   - **Store Tokens**: Enabled
+   - **Trust Email**: Enabled
+   - **Account Linking Only**: Disabled
+
+3. **Configure Mappers** (Automatic):
+   - **Username Template**: `google.${CLAIM.sub}`
+   - **First Name**: Maps from `given_name`
+   - **Last Name**: Maps from `family_name`
+   - **Email**: Maps from `email`
+   - **Full Name**: Maps from `name`
+
+4. **Advanced Settings**:
+   - **Hide on Login Page**: Disabled
+   - **First Broker Login Flow**: First broker login
+   - **Post Broker Login Flow**: Post broker login
+   - **Sync Mode**: Import
+
+5. **Click "Save"**
+
+#### 5.6 Configure Google OAuth Client (Google Cloud Console)
+
+1. **Access Google Cloud Console**: https://console.cloud.google.com/
+2. **Create/Select Project**
+3. **Enable Google+ API**:
+   - Go to **APIs & Services** → **Library**
+   - Search for "Google+ API"
+   - Click **Enable**
+
+4. **Create OAuth 2.0 Credentials**:
+   - Go to **APIs & Services** → **Credentials**
+   - Click **Create Credentials** → **OAuth 2.0 Client IDs**
+   - **Application Type**: Web application
+   - **Name**: NexaAuth Keycloak Integration
+   - **Authorized JavaScript origins**: `http://localhost:8080`
+   - **Authorized redirect URIs**: `http://localhost:8080/realms/nexaauth/broker/google/endpoint`
+
+5. **Copy Credentials**:
+   - Copy **Client ID** and **Client Secret**
+   - Use these in Keycloak Google IDP configuration
 
 ### Step 6: Start NexaAuth Backend
 
@@ -186,10 +227,64 @@ curl http://localhost:3000/
 
 ### Test 3: Google Login Flow
 
-1. Open browser and navigate to: http://localhost:3000/test
-2. Click **"Test Google Login"** button
-3. Complete Google authentication
-4. Verify success page with organization and client details
+#### **Complete Google IDP Flow Test:**
+
+1. **Open Test Page**:
+   ```
+   http://localhost:3000/test
+   ```
+
+2. **Initiate Google Login**:
+   - Click **"Test Google Login"** button
+   - You'll be redirected to Keycloak login page
+   - Click **"Google"** button
+
+3. **Google Authentication**:
+   - Complete Google OAuth flow
+   - Grant permissions to NexaAuth
+   - Google redirects back to Keycloak
+
+4. **Automatic Processing**:
+   - Keycloak creates/finds user
+   - Redirects to NexaAuth backend
+   - Backend exchanges code for token
+   - Backend extracts user information
+   - Backend creates organization and client
+
+5. **Verify Success**:
+   - Success page displays with all created resources
+   - Check console logs for debug information
+   - Verify user, organization, and client in Keycloak admin
+
+#### **Expected Debug Output:**
+```
+[DEBUG] OAuth callback received with code: abc123...
+[DEBUG] Exchanging authorization code for token...
+[DEBUG] Token exchange successful
+[DEBUG] Extracting user information from JWT...
+[DEBUG] User ID: 550e8400-e29b-41d4-a716-446655440000
+[DEBUG] Email: john.doe@gmail.com
+[DEBUG] First name: John
+[DEBUG] Last name: Doe
+[DEBUG] Creating organization: org-gmail-johndoe
+[DEBUG] Creating client: client-gmail-johndoe
+[DEBUG] Assigning admin role to user
+[DEBUG] All resources created successfully
+```
+
+#### **Verify in Keycloak Admin:**
+
+1. **Check Users**:
+   - Go to **Users** → Search for your email
+   - Verify user exists with Google IDP
+
+2. **Check Organizations**:
+   - Go to **Organizations** → Search for your organization
+   - Verify organization name: `org-gmail-{sanitized-name}`
+
+3. **Check Clients**:
+   - Go to **Clients** → Search for your client
+   - Verify client ID: `client-gmail-{sanitized-name}`
 
 ### Test 4: API Registration
 
@@ -446,6 +541,89 @@ docker-compose logs keycloak
 # Verify client configuration
 # Check if client is properly configured
 ```
+
+#### 5. Google IDP Configuration Issues
+
+**Problem**: Google login not working or user not created
+
+**Solutions**:
+
+1. **Check Google OAuth Configuration**:
+   ```bash
+   # Verify Google Cloud Console settings
+   # Ensure redirect URI is correct:
+   # http://localhost:8080/realms/nexaauth/broker/google/endpoint
+   ```
+
+2. **Verify Keycloak Google IDP Settings**:
+   - Check **Client ID** and **Client Secret**
+   - Ensure **Default Scopes** includes `openid profile email`
+   - Verify **Store Tokens** is enabled
+   - Check **Trust Email** is enabled
+
+3. **Check User Mappers**:
+   - Verify username template: `google.${CLAIM.sub}`
+   - Check attribute mappers are configured
+   - Ensure sync mode is set to **Import**
+
+4. **Debug Google IDP Flow**:
+   ```bash
+   # Enable debug logging
+   DEBUG=nexaauth:* npm start
+   
+   # Check browser console for errors
+   # Verify OAuth callback is working
+   ```
+
+#### 6. Organization/Client Not Created
+
+**Problem**: User created but organization and client missing
+
+**Solutions**:
+
+1. **Check Backend Logs**:
+   ```bash
+   # Look for debug messages about organization/client creation
+   # Check for 409 Conflict errors (resource already exists)
+   ```
+
+2. **Verify JWT Token Extraction**:
+   - Check if user information is properly extracted
+   - Verify email, firstName, lastName are present
+   - Check if Keycloak ID is correctly extracted
+
+3. **Manual API Test**:
+   ```bash
+   # Test the registration endpoint manually
+   curl -X POST http://localhost:3000/register-google-idp \
+     -H "Content-Type: application/json" \
+     -d '{
+       "keycloakId": "user-uuid",
+       "email": "user@gmail.com",
+       "firstName": "John",
+       "lastName": "Doe"
+     }'
+   ```
+
+#### 7. Name Sanitization Issues
+
+**Problem**: Organization/client names contain invalid characters
+
+**Solutions**:
+
+1. **Check Name Sanitization**:
+   ```javascript
+   // Debug name sanitization
+   console.log('Original name:', firstName + ' ' + lastName);
+   console.log('Sanitized name:', sanitizedName);
+   console.log('Domain:', domain);
+   console.log('Final org name:', orgName);
+   ```
+
+2. **Verify Special Character Handling**:
+   - Names with spaces, dots, special chars
+   - Email domains (gmail, yahoo, etc.)
+   - Unicode characters in names
 
 ### Debug Mode
 

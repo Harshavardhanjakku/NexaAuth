@@ -59,6 +59,36 @@ npm start
 
 ## 📋 API Endpoints
 
+### 🔐 Google Identity Provider Endpoints
+
+#### **Primary Google IDP Endpoint**
+**POST** `/register-google-idp`
+- **Purpose**: Main endpoint for Google IDP user registration
+- **Triggered**: Automatically by OAuth callback flow
+- **Process**: Creates organization and client for existing Google user
+- **Input**: `keycloakId`, `email`, `firstName`, `lastName`
+- **Output**: Complete user, organization, and client details
+
+#### **Existing Google User Endpoint**
+**POST** `/register-existing-google-user`
+- **Purpose**: Create org/client for existing Google users
+- **Use Case**: Manual registration of users who already exist in Keycloak
+- **Input**: `email` only
+- **Process**: Finds existing user, creates organization and client
+
+#### **OAuth Callback Handler**
+**GET** `/` (with query parameters)
+- **Purpose**: Handles OAuth redirect from Keycloak
+- **Process**: Exchanges authorization code for token, extracts user info, calls registration API
+- **Query Params**: `code`, `state`, `error`
+- **Response**: HTML page with success/error status
+
+#### **Test Google Login**
+**GET** `/test`
+- **Purpose**: Provides test interface for Google login flow
+- **Response**: HTML page with Google login button
+- **Use Case**: Manual testing of complete OAuth flow
+
 ### 🔐 Authentication Endpoints
 
 #### `GET /`
@@ -209,18 +239,88 @@ KEYCLOAK_CLIENT_ID=nexaauth-app
    - **Valid Post Logout Redirect URIs**: `http://localhost:3000/*`
    - **Web Origins**: `http://localhost:3000`
 
-## 🎯 Google OAuth Flow
+## 🎯 Google Identity Provider (IDP) Workflow
 
-### Complete Authentication Flow
+### 🔄 Complete Authentication Flow
 
-1. **User clicks "Login with Google"**
-2. **Keycloak redirects to Google**
-3. **User authenticates with Google**
-4. **Google redirects back to Keycloak**
-5. **Keycloak redirects to NexaAuth backend**
-6. **NexaAuth exchanges code for token**
-7. **NexaAuth creates user, organization, and client**
-8. **Success page displayed**
+#### **Step-by-Step Process:**
+
+1. **🚀 User Initiates Login**
+   - User opens: `http://localhost:3000/test`
+   - Clicks "Test Google Login" button
+   - Redirected to Keycloak Google IDP
+
+2. **🔐 Google Authentication**
+   - Keycloak redirects to Google OAuth
+   - User authenticates with Google credentials
+   - Google validates user identity
+
+3. **🔄 Token Exchange**
+   - Google redirects back to Keycloak with authorization code
+   - Keycloak exchanges code for access token
+   - Keycloak creates/finds user in realm
+
+4. **📡 Backend Processing**
+   - Keycloak redirects to NexaAuth backend (`http://localhost:3000`)
+   - Backend receives authorization code
+   - Backend exchanges code for JWT token
+   - Backend extracts user information from JWT
+
+5. **🏢 Automatic Resource Creation**
+   - **User**: Already exists (created by Google IDP)
+   - **Organization**: Created automatically based on user data
+   - **Client**: Created automatically for the organization
+   - **Roles**: Assigned automatically to user
+
+6. **✅ Success Response**
+   - Success page displayed with all created resources
+   - User can now access their organization and client
+
+### 🔧 Google IDP Configuration
+
+#### **Keycloak Identity Provider Setup:**
+
+1. **Access Keycloak Admin**: http://localhost:8080/admin
+2. **Select Realm**: nexaauth
+3. **Go to Identity Providers** → **Add provider** → **Google**
+4. **Configure Google OAuth**:
+   - **Client ID**: Your Google OAuth Client ID
+   - **Client Secret**: Your Google OAuth Client Secret
+   - **Default Scopes**: `openid profile email`
+
+#### **Google IDP Mappers:**
+
+The system automatically maps Google user attributes:
+
+| Google Attribute | Keycloak Attribute | Description |
+|------------------|-------------------|-------------|
+| `sub` | `keycloakId` | Unique Google user identifier |
+| `email` | `email` | User's email address |
+| `given_name` | `firstName` | User's first name |
+| `family_name` | `lastName` | User's last name |
+| `name` | `fullName` | User's full name |
+| `picture` | `picture` | User's profile picture URL |
+
+#### **Automatic Resource Naming:**
+
+- **Organization Name**: `org-{domain}-{sanitized-name}`
+  - Example: `org-gmail-johndoe` (for john.doe@gmail.com)
+- **Client ID**: `client-{domain}-{sanitized-name}`
+  - Example: `client-gmail-johndoe`
+- **Domain**: `{sanitized-org-name}.org`
+  - Example: `org-gmail-johndoe.org`
+
+#### **Name Sanitization Process:**
+
+```javascript
+// Input: "John Doe" (firstName + lastName)
+// Output: "johndoe" (lowercase, no spaces, no special chars)
+
+// Input: "john.doe@gmail.com"
+// Domain: "gmail"
+// Sanitized: "johndoe"
+// Final: "org-gmail-johndoe"
+```
 
 ## 🛠️ Development
 
@@ -228,16 +328,22 @@ KEYCLOAK_CLIENT_ID=nexaauth-app
 
 ```
 NexaAuth/
-├── 📁 public/                 # Static files
-│   ├── oauth-callback.html    # OAuth callback handler
-│   └── test-google-login.html  # Test page
-├── 📁 docker/                 # Docker configuration
-├── 📄 index.js                # Main application
-├── 📄 package.json           # Dependencies
-├── 📄 docker-compose.yml     # Docker services
-├── 📄 .env                    # Environment variables
-├── 📄 .gitignore             # Git ignore rules
-└── 📄 README.md              # This file
+├── 📁 public/                          # Static files and frontend assets
+│   ├── oauth-callback.html            # OAuth callback handler with debug logging
+│   └── test-google-login.html         # Test page for Google login flow
+├── 📁 docker/                         # Docker configuration files
+├── 📁 node_modules/                   # Node.js dependencies (ignored by git)
+├── 📄 .env                            # Environment variables (ignored by git)
+├── 📄 .gitignore                      # Git ignore rules
+├── 📄 docker-compose.yml              # Docker services configuration
+├── 📄 index.js                        # Main application file
+├── 📄 package.json                    # Node.js dependencies and scripts
+├── 📄 package-lock.json              # Dependency lock file
+├── 📄 README.md                       # Main project documentation
+├── 📄 API-DOCUMENTATION.md            # Complete API reference
+├── 📄 SETUP-GUIDE.md                  # Installation and configuration guide
+├── 📄 PROJECT-STRUCTURE.md            # Project organization overview
+└── 📄 NexaAuth-API.postman_collection.json  # Postman collection for testing
 ```
 
 ### Available Scripts
